@@ -1,5 +1,5 @@
 # edgetpu_demo
-C++ based EdgeTPU C++ API Demo code
+EdgeTPU C++ API based Demo code, please using EdgeTPU Dev-Board for test this demo code.
 
 This project contains two part.
 
@@ -16,7 +16,7 @@ OS update, please use the below script to install needed packages.
 sudo apt install mc joe samba libhdf5-103 libqtgui4 libatlas-base-dev libqt4-test python3-opencv libopencv-dev astyle libncurses-dev ntpdate git cmake
 
 
-這是以EdgeTPU C++ API為基礎的C++範例。
+這是以EdgeTPU C++ API為基礎的C++範例。請使用EdgeTPU Dev-Board進行測試該範例程式。
 
 分為二個部份，一個是將edgetpu c++ api編譯成為靜態函式庫。另外一個是範例程式，只有使用edgetpu c++ api, tf-lite api以及其相關函式庫，再來就是OpenCV。
 
