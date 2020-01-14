@@ -1,9 +1,3 @@
-/*
- Creator : Akio Lin
- Date    : 2020-01-08
- Email   : akioolin@gmail.com
-*/
-
 #include <opencv2/opencv.hpp>
 
 #include "src/cpp/basic/basic_engine.h"
@@ -36,11 +30,17 @@ static void readLabel(const char* filename, std::vector<std::string> &labels)
 int main(int argc, char *argv[]) {
 	int top_k = 1;
 	int dim_size = 0;
-	int image_width = 0;
-	int image_height = 0;
+	int input_image_width = 0;
+	int input_image_height = 0;
+	int camera_image_width = 640;
+	int camera_image_height = 480;
+	int btm = 0;
+	int top = 0;
+	int lft = 0;
+	int rgt = 0;
 	float score_threshold = 0.35f;
-	float iou_threshold = 0.75f;
-	cv::Mat video_frame;
+	//float iou_threshold = 0.75f;
+	cv::Mat camera_frame;
 	cv::Mat resize_frame;
 	std::vector<std::string> labels;
 	DetectionEngine *engine;
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 	// Load model's label file
 	readLabel(LABEL_FILENAME, labels);	
 
-	edgetpu::EdgeTpuManager::GetSingleton()->SetVerbosity(10);
+	edgetpu::EdgeTpuManager::GetSingleton()->SetVerbosity(0);
 	engine = new DetectionEngine(MODEL_FILENAME);
 	std::vector<int> input_tensor_shape = engine->get_input_tensor_shape();
 	std::vector<int> output_tensor_size = engine->get_all_output_tensors_sizes();
@@ -60,8 +60,8 @@ int main(int argc, char *argv[]) {
 		std::cout <<"input tensor width:"   << input_tensor_shape[1] << "\r\n";
 		std::cout <<"input tensor height:"  << input_tensor_shape[2] << "\r\n";
 		std::cout <<"input tensor channel:" << input_tensor_shape[3] << "\r\n";
-		image_width  = input_tensor_shape[1];
-		image_height = input_tensor_shape[2];
+		input_image_width  = input_tensor_shape[1];
+		input_image_height = input_tensor_shape[2];
 	} else {
 		std::cout << "model input tensor dimension wrong, please check model\r\n";
 	}
@@ -84,8 +84,8 @@ int main(int argc, char *argv[]) {
 		return -1;
 	} else {
 		// Camera Setting
-		uvc_camera.set(cv::CAP_PROP_FRAME_WIDTH,  640);
-		uvc_camera.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+		uvc_camera.set(cv::CAP_PROP_FRAME_WIDTH,  camera_image_width);
+		uvc_camera.set(cv::CAP_PROP_FRAME_HEIGHT, camera_image_height);
 		uvc_camera.set(cv::CAP_PROP_FPS, 30.0f);
 		std::cout << "Open Camera Done.\r\n";
 		std::cout << "Camera frame width: "  << uvc_camera.get(cv::CAP_PROP_FRAME_WIDTH)  << "\r\n";
@@ -94,30 +94,41 @@ int main(int argc, char *argv[]) {
 	}
 
 	while(1) {
-		if(!uvc_camera.read(video_frame)) {
-			std::cout << "video frame captured failed!!\r\n";
+		if(!uvc_camera.read(camera_frame)) {
+			std::cout << "camera frame captured failed!!\r\n";
 			break;
 		}
-		// video frame color format conversion, resize.
-		cv::cvtColor(video_frame, resize_frame, cv::COLOR_BGR2RGB);
-		cv::resize(resize_frame, resize_frame, cv::Size(image_width, image_height));
-		cv::imshow("UVC Camera raw frame", video_frame);
-		cv::imshow("UVC Camera resize frame", resize_frame);
 		
+		// camera frame color format conversion, resize.
+		cv::cvtColor(camera_frame, resize_frame, cv::COLOR_BGR2RGB);
+		cv::resize(resize_frame, resize_frame, cv::Size(input_image_width, input_image_height));		
 		std::vector<uint8_t> input_tensor(resize_frame.data, resize_frame.data + (resize_frame.cols * resize_frame.rows * resize_frame.elemSize()));
 		auto candiates = engine->DetectWithInputTensor(input_tensor, score_threshold, top_k);
 
 		dim_size = candiates.size();
-		if(dim_size == 1) {
-			DetectionCandidate result = candiates[0];
-			std::cout << "object=> " << labels[result.label] << ", probability=> " << result.score << "\r\n";
-			std::cout << "bottom=> " << result.corners.ymin << "\r\n";
-			std::cout << "left=> "   << result.corners.xmin << "\r\n";
-			std::cout << "top=> "    << result.corners.ymax << "\r\n";
-			std::cout << "right=> "  << result.corners.xmax << "\r\n";
+		if(dim_size >= 1) {
+			for(int i = 0; i < dim_size; i++) {
+				DetectionCandidate result = candiates[i];
+				top = (int)(result.corners.xmin * camera_image_height + 0.5f);
+				lft = (int)(result.corners.ymin * camera_image_width  + 0.5f);
+				btm = (int)(result.corners.xmax * camera_image_height + 0.5f);
+				rgt = (int)(result.corners.ymax * camera_image_width  + 0.5f);
+				std::cout << "object=> " 
+					  << labels[result.label] 
+					  << ", probability=> " 
+					  << result.score 
+					  << ", (" << lft << ", " << top 
+					  << ")-(" << rgt << ", " << btm 
+					  << ")\r\n";
+				cv::putText(camera_frame, labels[result.label], cv::Point(lft, top), cv::FONT_HERSHEY_COMPLEX, 1.0, cv::Scalar(0, 255, 255), 1, 8, 0);
+				cv::rectangle(camera_frame, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 255), 2, 1, 0);
+			}
 		} else {
 			std::cout << "no object detect\r\n";
 		}
+
+		cv::imshow("UVC Camera raw frame", camera_frame);
+		//cv::imshow("UVC Camera resize frame", resize_frame);
 
 		cv::waitKey(1);
 	}
