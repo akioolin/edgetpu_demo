@@ -13,8 +13,7 @@ using namespace coral;
 
 static void readLabel(const char* filename, std::vector<std::string> &labels);
 
-static void readLabel(const char* filename, std::vector<std::string> &labels)
-{
+static void readLabel(const char* filename, std::vector<std::string> &labels) {
 	std::ifstream ifs(filename);
 	if (ifs.fail()) {
 		std::cout << "failed to read " << filename << "\r\n";
@@ -25,6 +24,7 @@ static void readLabel(const char* filename, std::vector<std::string> &labels)
 	while(getline(ifs, str)) {
 		labels.push_back(str);
 	}
+	std::cout << "Total Classes: " << labels.size() << "\r\n";
 }
 
 int main(int argc, char *argv[]) {
@@ -113,10 +113,10 @@ int main(int argc, char *argv[]) {
 				lft = (int)(result.corners.ymin * camera_image_width  + 0.5f);
 				btm = (int)(result.corners.xmax * camera_image_height + 0.5f);
 				rgt = (int)(result.corners.ymax * camera_image_width  + 0.5f);
-				std::cout << "object=> " 
-					  << labels[result.label] 
-					  << ", probability=> " 
-					  << result.score 
+				std::cout << "object[" << i << "]=> "
+					  << "cat_index=> " << result.label
+					  << ", name:" << labels[result.label]
+					  << ", probability=> " << result.score
 					  << ", (" << lft << ", " << top 
 					  << ")-(" << rgt << ", " << btm 
 					  << ")\r\n";
